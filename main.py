@@ -27,6 +27,7 @@ openGrip = 0
 numPlayers = 1
 arrows = []
 overlayTextPositionArr = []
+# Loads robot arm, needs a plugged in px150 arm activated in another terminal window
 bot = InterbotixManipulatorXS("px150", "arm", "gripper")
 
 class Controller:
@@ -150,6 +151,8 @@ img_height, img_width = 100, 150
 n_channels = 3
 joycon = np.zeros((img_height, img_width, n_channels), dtype=np.uint8)
 
+# Try-except block is for exiting gracefully - when no hands are detected on screen, the program will exit the detection loop
+# and reset the robot to home position before ending the program
 try:
 	with mp_hands.Hands(
 		model_complexity=1,
@@ -157,10 +160,13 @@ try:
 		min_detection_confidence=0.5,
 		min_tracking_confidence=0.7) as hands:
 
+		# These numbers are used to check hand position differences every 30 frames - if every frame was checked it would be difficult
+		# to move enough in one frame to input a change
 		lastIndexPos = None
 		frameCounter = 0
 		frames = 30
 
+		# Extend arm
 		bot.arm.go_to_home_pose()
 
 		while cap.isOpened():
@@ -176,6 +182,7 @@ try:
 			leftConroller = 0
 			rightConroller = 0
 
+			# These hyperparameters are used to prevent the arm from extending too far in one direction, which might cause it's muscles to fail
 			distanceCap = 0.75
 			currentExtension = 0
 
@@ -200,20 +207,26 @@ try:
 				print("calibration complete")
 			if (calibratedCoords != None and len(calibratedCoords) > 0):
 
+				# If no previous position has been recorded for the left hand(the program just started running), record the initial positoin
 				if (lastIndexPos is None):
 					lastIndexPos = results.multi_hand_landmarks[0].landmark[mp_hands.HandLandmark.INDEX_FINGER_TIP]
 				elif (frameCounter >= frames):
 					frameCounter = 0;
 					new = results.multi_hand_landmarks[0].landmark[mp_hands.HandLandmark.INDEX_FINGER_TIP]
+					# If the x position of the left hand is a great enough difference from the last recorded position, move the arm left or right
 					if (abs(new.x - lastIndexPos.x) > 0.05):
 						#print("Change in x:" + str((new.x - lastIndexPos.x)/10))
 						#bot.arm.set_ee_cartesian_trajectory(x= (new.x - lastIndexPos.x)/10)
+						# This will move the waist to the position of the new x, scaled to the 180 rotation of the arm
 						bot.arm.set_single_joint_position("waist", np.pi / 2 - np.pi * (1 - new.x))
 						lastIndexPos.x = new.x
+					# If the y position of the left hand is a great enough change, move the arm forward or backward
 					if (abs(new.y - lastIndexPos.y) > 0.05):
+						# if this movement would take the arm over the extension cap, the change is capped at reaching that cap
 						dx = 0.3 * (0.5 - new.y)
 						if (dx + currentExtension > distanceCap): dx = distanceCap - currentExtension
 						if (dx + currentExtension < -distanceCap): dx = -distanceCap - currentExtension
+						# this will move the arm an amount equal to how far up or down from the center the detected hand is
 						bot.arm.set_ee_cartesian_trajectory(x=(dx))
 						currentExtension += dx
 						lastIndexPos.y = new.y
@@ -271,6 +284,7 @@ try:
 
 							if (aButtonPressed == 1):
 								aButton += 1
+								# If right thumb is pressed, invert whether the arm is gripping
 								if(aButton < 2):
 									print("Right thumb Pressed")
 									if openGrip == 1:
