@@ -1,5 +1,12 @@
 # Scicero
 
+## Dependencies
+* Python3
+* OpenCV - `pip3 install opencv-python`
+* Mediapipe- `pip3 install mediapipe`
+* Correct version of ROS (noetic)
+* Install the Interbotix drivers - latest version
+
 After robot arm is running(must be px150 or this will need to be changed in main.py), the webcam will launch. In order to calibrate, hold both hands up before the camera and ensure your right thumb is extended - this is so the algorithm will detect when the right thumb is pressed down.
 
 After calibration, the robot arm can be controlled as follows:
@@ -8,3 +15,4 @@ moving your left index above or below the center of the camera will input a move
 moving both left/right and up/down will issue both commands simultaneously
 
 the right thumb may additionally be pressed as if one were pressing a button to open/close the gripper of the arm
+
